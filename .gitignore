@@ -1,52 +1,11 @@
-# Prerequisites
-*.d
+# Atmel studio files
 
-# Object files
-*.o
-*.ko
-*.obj
-*.elf
+/SAMD21_USB_HID/.atmelstart
+/SAMD21_USB_HID/.project-backup
+/SAMD21_USB_HID/Debug
 
-# Linker output
-*.ilk
-*.map
-*.exp
+# C# visual studio files
 
-# Precompiled Headers
-*.gch
-*.pch
-
-# Libraries
-*.lib
-*.a
-*.la
-*.lo
-
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
-*.dylib
-
-# Executables
-*.exe
-*.out
-*.app
-*.i*86
-*.x86_64
-*.hex
-
-# Debug files
-*.dSYM/
-*.su
-*.idb
-*.pdb
-
-# Kernel Module Compile Results
-*.mod*
-*.cmd
-.tmp_versions/
-modules.order
-Module.symvers
-Mkfile.old
-dkms.conf
+\CS_USB_HID_C\bin
+\CS_USB_HID_C\.vs
+\CS_USB_HID_C\obj

@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "p5mLRWkARR/aK8x17Fiu5pyGqLnDEKC6qIlRsmDop7dKBosJy0nrf5rjVATZiSDV9/qECDFs/Got3c5/Ptb/Fw==",
+  "success": true,
+  "projectFilePath": "C:\\Users\\princ\\Desktop\\git\\SAMD21_USB_HID\\CS_USB_HID_C\\CS_USB_HID_C.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\princ\\.nuget\\packages\\hidlibrary\\3.3.40\\hidlibrary.3.3.40.nupkg.sha512"
+  ],
+  "logs": []
+}

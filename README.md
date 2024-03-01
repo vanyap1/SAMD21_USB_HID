@@ -1,2 +1,4 @@
 # SAMD21_USB_HID
 Only my USB HID research. On Atmel samd21 MCU
+
+USB\VID_03EB&PID_2402\8&29C9B13D&0&2
