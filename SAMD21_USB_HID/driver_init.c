@@ -15,6 +15,7 @@
 
 struct spi_m_sync_descriptor EXT_SPI;
 struct spi_m_sync_descriptor RF_SPI;
+struct spi_m_sync_descriptor ETH_SPI;
 
 struct i2c_m_sync_desc RTC_I2C;
 
@@ -23,31 +24,15 @@ struct i2c_m_sync_desc EXT_I2C;
 void EXTERNAL_IRQ_0_init(void)
 {
 	_gclk_enable_channel(EIC_GCLK_ID, CONF_GCLK_EIC_SRC);
-
-	// Set pin direction to input
 	gpio_set_pin_direction(BTN0, GPIO_DIRECTION_IN);
-
-	gpio_set_pin_pull_mode(BTN0,
-	                       // <y> Pull configuration
-	                       // <id> pad_pull_config
-	                       // <GPIO_PULL_OFF"> Off
-	                       // <GPIO_PULL_UP"> Pull-up
-	                       // <GPIO_PULL_DOWN"> Pull-down
-	                       GPIO_PULL_OFF);
-
+	gpio_set_pin_pull_mode(BTN0, GPIO_PULL_OFF);
 	gpio_set_pin_function(BTN0, PINMUX_PB01A_EIC_EXTINT1);
+
+
 
 	// Set pin direction to input
 	gpio_set_pin_direction(PB08, GPIO_DIRECTION_IN);
-
-	gpio_set_pin_pull_mode(PB08,
-	                       // <y> Pull configuration
-	                       // <id> pad_pull_config
-	                       // <GPIO_PULL_OFF"> Off
-	                       // <GPIO_PULL_UP"> Pull-up
-	                       // <GPIO_PULL_DOWN"> Pull-down
-	                       GPIO_PULL_OFF);
-
+	gpio_set_pin_pull_mode(PB08, GPIO_PULL_OFF);
 	gpio_set_pin_function(PB08, PINMUX_PB08A_EIC_EXTINT8);
 
 	// Set pin direction to input
@@ -263,6 +248,60 @@ void EXT_I2C_init(void)
 	EXT_I2C_PORT_init();
 }
 
+void ETH_SPI_PORT_init(void)
+{
+
+	gpio_set_pin_level(PB16,
+	                   // <y> Initial level
+	                   // <id> pad_initial_level
+	                   // <false"> Low
+	                   // <true"> High
+	                   false);
+
+	// Set pin direction to output
+	gpio_set_pin_direction(PB16, GPIO_DIRECTION_OUT);
+
+	gpio_set_pin_function(PB16, PINMUX_PB16C_SERCOM5_PAD0);
+
+	gpio_set_pin_level(PB17,
+	                   // <y> Initial level
+	                   // <id> pad_initial_level
+	                   // <false"> Low
+	                   // <true"> High
+	                   false);
+
+	// Set pin direction to output
+	gpio_set_pin_direction(PB17, GPIO_DIRECTION_OUT);
+
+	gpio_set_pin_function(PB17, PINMUX_PB17C_SERCOM5_PAD1);
+
+	// Set pin direction to input
+	gpio_set_pin_direction(PA20, GPIO_DIRECTION_IN);
+
+	gpio_set_pin_pull_mode(PA20,
+	                       // <y> Pull configuration
+	                       // <id> pad_pull_config
+	                       // <GPIO_PULL_OFF"> Off
+	                       // <GPIO_PULL_UP"> Pull-up
+	                       // <GPIO_PULL_DOWN"> Pull-down
+	                       GPIO_PULL_OFF);
+
+	gpio_set_pin_function(PA20, PINMUX_PA20C_SERCOM5_PAD2);
+}
+
+void ETH_SPI_CLOCK_init(void)
+{
+	_pm_enable_bus_clock(PM_BUS_APBC, SERCOM5);
+	_gclk_enable_channel(SERCOM5_GCLK_ID_CORE, CONF_GCLK_SERCOM5_CORE_SRC);
+}
+
+void ETH_SPI_init(void)
+{
+	ETH_SPI_CLOCK_init();
+	spi_m_sync_init(&ETH_SPI, SERCOM5);
+	ETH_SPI_PORT_init();
+}
+
 void USB_0_PORT_init(void)
 {
 
@@ -370,6 +409,20 @@ void system_init(void)
 {
 	init_mcu();
 
+	// GPIO on PA21
+
+	gpio_set_pin_level(ETH_CS,
+	                   // <y> Initial level
+	                   // <id> pad_initial_level
+	                   // <false"> Low
+	                   // <true"> High
+	                   true);
+
+	// Set pin direction to output
+	gpio_set_pin_direction(ETH_CS, GPIO_DIRECTION_OUT);
+
+	gpio_set_pin_function(ETH_CS, GPIO_PIN_FUNCTION_OFF);
+
 	// GPIO on PB00
 
 	gpio_set_pin_level(LED1,
@@ -407,6 +460,8 @@ void system_init(void)
 	RTC_I2C_init();
 
 	EXT_I2C_init();
+
+	ETH_SPI_init();
 
 	USB_0_init();
 }

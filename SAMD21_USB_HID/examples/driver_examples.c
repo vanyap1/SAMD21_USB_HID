@@ -12,22 +12,18 @@
 
 static void button_on_PB01_pressed(void)
 {
-	gpio_toggle_pin_level(RLD);
 }
 
 static void button_on_PB08_pressed(void)
 {
-	gpio_toggle_pin_level(RLD);
 }
 
 static void button_on_PA10_pressed(void)
 {
-	gpio_toggle_pin_level(RLD);
 }
 
 static void button_on_PB30_pressed(void)
 {
-	gpio_toggle_pin_level(RLD);
 }
 
 /**
@@ -88,4 +84,18 @@ void EXT_I2C_example(void)
 	i2c_m_sync_enable(&EXT_I2C);
 	i2c_m_sync_set_slaveaddr(&EXT_I2C, 0x12, I2C_M_SEVEN);
 	io_write(EXT_I2C_io, (uint8_t *)"Hello World!", 12);
+}
+
+/**
+ * Example of using ETH_SPI to write "Hello World" using the IO abstraction.
+ */
+static uint8_t example_ETH_SPI[12] = "Hello World!";
+
+void ETH_SPI_example(void)
+{
+	struct io_descriptor *io;
+	spi_m_sync_get_io_descriptor(&ETH_SPI, &io);
+
+	spi_m_sync_enable(&ETH_SPI);
+	io_write(io, example_ETH_SPI, 12);
 }

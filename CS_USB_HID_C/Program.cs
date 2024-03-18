@@ -59,7 +59,7 @@ class Program
             }catch (Exception ex) { 
                 Console.WriteLine($"{ex.Message}");
             }
-            Thread.Sleep(50);
+            Thread.Sleep(250);
             }
     }
 }

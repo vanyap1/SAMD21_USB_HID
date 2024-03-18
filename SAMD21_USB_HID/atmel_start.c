@@ -5,6 +5,6 @@
  **/
 void atmel_start_init(void)
 {
-	mcu_init();
+	system_init();
 	usb_init();
 }

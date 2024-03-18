@@ -30,6 +30,8 @@
 #define PA09 GPIO(GPIO_PORTA, 9)
 #define PA10 GPIO(GPIO_PORTA, 10)
 #define PA18 GPIO(GPIO_PORTA, 18)
+
+#define ETH_CS GPIO(GPIO_PORTA, 21)
 #define PA24 GPIO(GPIO_PORTA, 24)
 #define PA25 GPIO(GPIO_PORTA, 25)
 #define LED1 GPIO(GPIO_PORTB, 0)
@@ -38,14 +40,15 @@
 #define PB08 GPIO(GPIO_PORTB, 8)
 #define PB12 GPIO(GPIO_PORTB, 12)
 #define PB13 GPIO(GPIO_PORTB, 13)
+
 #define PB30 GPIO(GPIO_PORTB, 30)
+
 
 #define RLD GPIO(GPIO_PORTB, 31)
 #define PA24 GPIO(GPIO_PORTA, 24)
 #define PA25 GPIO(GPIO_PORTA, 25)
 #define GLD GPIO(GPIO_PORTB, 0)
 #define BTN0 GPIO(GPIO_PORTB, 1)
-
 
 //RF module pins
 #define PA00 GPIO(GPIO_PORTA, 0)		//MOSI
@@ -60,6 +63,9 @@
 #define ROM_CS GPIO(GPIO_PORTA, 23)		//SPI flash CS
 
 //SD Card pins
+
+
+
 //USED RF SPI
 #define LED_SD GPIO(GPIO_PORTA, 3)		//SD Card activity LED
 #define SD_CS GPIO(GPIO_PORTB, 4)		//SD Cart select pin
@@ -69,6 +75,12 @@
 #define PA04 GPIO(GPIO_PORTA, 4)		//MOSI
 #define PA05 GPIO(GPIO_PORTA, 5)		//CLK
 #define PA06 GPIO(GPIO_PORTA, 6)		//MISO
+
+//ETH_SPI
+#define PB16 GPIO(GPIO_PORTB, 16)		//MISO
+#define PB17 GPIO(GPIO_PORTB, 17)		//CLK
+#define PA20 GPIO(GPIO_PORTA, 20)		//MOSI
+#define PA21 GPIO(GPIO_PORTA, 21)		//ETH_CS
 
 //EXT IO HEADER
 #define FILAMENT_EN GPIO(GPIO_PORTB, 6)	// IO0
@@ -85,6 +97,4 @@
 #define PA08 GPIO(GPIO_PORTA, 8)		//SDA
 #define PA09 GPIO(GPIO_PORTA, 9)		//SCL
 #define RTC_IRQ GPIO(GPIO_PORTA, 10)	//IRQ
-
-
 #endif // ATMEL_START_PINS_H_INCLUDED

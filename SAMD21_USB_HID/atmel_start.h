@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#include "hw_init.h"
+#include "driver_init.h"
 #include "usb_start.h"
 
 /**
