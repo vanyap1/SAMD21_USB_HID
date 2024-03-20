@@ -55,9 +55,19 @@ wiz_NetInfo netInfo = { .mac  = {0x20, 0xcf, 0xF0, 0x82, 0x76, 0x00}, // Mac add
 .gw   = {192, 168, 1, 1}, // Gateway address
 .dhcp = NETINFO_STATIC};    //Static IP configuration
 
-uint16_t socketPort[8] = {80, 23, 8080, 8080, 8080, 8080, 8080, 5000};
+uint16_t socketPort[8] = {80, 23, 80, 80, 8080, 8080, 8080, 5000};
 uint8_t rx_tx_buff_sizes[]={2,2,2,2,2,2,2,2};
 	
+
+//UDP pkg sender 
+uint8_t result;
+uint8_t *testBuffer 	= "Wiznet Says Hi!";
+uint8_t  UdpDestAddress[4]		= { 192,168,1,255 };
+uint16_t UdpPort			= 300;
+uint8_t	 UdpSockNum			= 0;
+uint8_t	 TelnetSockNum		= 1;
+
+
 uint8_t rtcData[64];	
 uint8_t testMsg[64];	
 
@@ -136,8 +146,7 @@ int main(void)
 	
 	/* Replace with your application code */
 	while (1) {
-		delay_ms(50);
-		ETH_SPI_WriteBuff(hid_generic_in_report, 8);
+		
 		gpio_set_pin_level(LED_SD, GetBtnState());
 		
 		
@@ -154,6 +163,9 @@ int main(void)
 				rfTxDataPack.dataCRC = simpleCRC(&rtcData, sizeof(rtcData));
 				sendFrame(&rfTxDataPack, &rtcData);
 			}
+			
+			//result = socket(0, Sn_MR_UDP, port, SF_IO_NONBLOCK);
+			//result = sendto(0, testBuffer, strlen(testBuffer), address, port);
 			
 			
 			
@@ -183,34 +195,87 @@ int main(void)
 		
 		
 		
+		//Telnet handler
+		if(getSn_SR(TelnetSockNum) == SOCK_ESTABLISHED){
+			uint8_t rIP[4];
+			getsockopt(TelnetSockNum, SO_DESTIP, rIP);
+			
+			uint16_t res_size = getSn_RX_RSR(1);
+			if (res_size > sizeof(TCP_RX_BUF)){
+				res_size = sizeof(TCP_RX_BUF);
+			}
+			memset(TCP_RX_BUF, 0, sizeof(DATA_BUFF_SIZE));
+			recv(TelnetSockNum, (uint8_t*)TCP_RX_BUF, res_size);
+			
+			if(res_size != 0){
+				sprintf(http_ansver ,"DONE\n\r");
+				send(TelnetSockNum, (uint8_t*)http_ansver, strlen(http_ansver));
+			}
+			result = socket(UdpSockNum, Sn_MR_UDP, UdpPort, SF_IO_NONBLOCK);
+			result = sendto(UdpSockNum, TCP_RX_BUF, res_size, UdpDestAddress, UdpPort);
+		}
+		if(getSn_SR(TelnetSockNum) == SOCK_CLOSE_WAIT){
+			disconnect(TelnetSockNum);
+			//close(HTTP_SOCKET);
+		}
+		
+		if(getSn_SR(TelnetSockNum) == SOCK_CLOSED){
+			socket(TelnetSockNum, Sn_MR_TCP, socketPort[TelnetSockNum], 0);
+			listen(TelnetSockNum);
+		}
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
 		
 		
 		uint8_t HTTP_SOCKET = 0;
-		for(HTTP_SOCKET = 0; HTTP_SOCKET <= 7; HTTP_SOCKET++){
+		for(HTTP_SOCKET = 2; HTTP_SOCKET <= 7; HTTP_SOCKET++){
 			if(getSn_SR(HTTP_SOCKET) == SOCK_ESTABLISHED){
 				uint8_t rIP[4];
 				getsockopt(HTTP_SOCKET, SO_DESTIP, rIP);
 				
 				uint16_t res_size = getSn_RX_RSR(HTTP_SOCKET);
 				if (res_size > sizeof(TCP_RX_BUF)){
-					res_size = sizeof(TCP_RX_BUF);
+					res_size = sizeof(TCP_RX_BUF);					
 				}
 				memset(TCP_RX_BUF, 0, sizeof(DATA_BUFF_SIZE));
 				
 				
 				
+				
+				
 				sprintf(http_ansver ,"<p><span style=\"color: #00ff00;\"><strong>data</strong></span></p>\n\r");
-				send(HTTP_SOCKET, (uint8_t*)http_ansver, strlen(http_ansver));
+				send(HTTP_SOCKET, (uint8_t*)http_ansver, strlen(http_ansver));    //Uncomment for TCP
 				
 				
 				
 				recv(HTTP_SOCKET, (uint8_t*)TCP_RX_BUF, res_size);
-				sprintf(http_ansver, "SOCKET NUM: %d;<br>RTC: %02d:%02d:%02d; \nRead bytes: %d<br>" , HTTP_SOCKET, sys_rtc.hour, sys_rtc.minute, sys_rtc.second,res_size);
-				send(HTTP_SOCKET, (uint8_t*)http_ansver, strlen(http_ansver));
-				sprintf(http_ansver ,"IP:%d.%d.%d.%d<br>", rIP[0],rIP[1],rIP[2],rIP[3]);
-				send(HTTP_SOCKET, (uint8_t*)http_ansver, strlen(http_ansver));
 				
-				//send(HTTP_SOCKET, (uint8_t*)TCP_RX_BUF, strlen(TCP_RX_BUF));
+				//if(res_size != 0){ // Actual for telnet connection
+					//send(HTTP_SOCKET, (uint8_t*)http_ansver, strlen(http_ansver));
+				//}
+				
+				result = socket(UdpSockNum, Sn_MR_UDP, UdpPort, SF_IO_NONBLOCK);
+				result = sendto(UdpSockNum, TCP_RX_BUF, res_size, UdpDestAddress, UdpPort);
+				
+				
+				sprintf(http_ansver, "SOCKET NUM: %d;<br>RTC: %02d:%02d:%02d; \nRead bytes: %d<br>" , HTTP_SOCKET, sys_rtc.hour, sys_rtc.minute, sys_rtc.second,res_size);
+				send(HTTP_SOCKET, (uint8_t*)http_ansver, strlen(http_ansver));	//Uncomment for TCP
+				sprintf(http_ansver ,"IP:%d.%d.%d.%d<br>", rIP[0],rIP[1],rIP[2],rIP[3]);
+				send(HTTP_SOCKET, (uint8_t*)http_ansver, strlen(http_ansver));	//Uncomment for TCP
+				
+				//send(HTTP_SOCKET, (uint8_t*)TCP_RX_BUF, strlen(TCP_RX_BUF));		//Uncomment for TCP
 				
 				
 				
@@ -242,9 +307,9 @@ int main(void)
 					////send(HTTP_SOCKET, (uint8_t*)http_ansver, strlen(http_ansver));
 				//}
 				//
-				disconnect(HTTP_SOCKET);
+			disconnect(HTTP_SOCKET);			//Uncomment for TCP
 				//close(HTTP_SOCKET);
-				//set_pin_level(&ldA, false);
+				
 			}
 			
 			if(getSn_SR(HTTP_SOCKET) == SOCK_CLOSE_WAIT){
