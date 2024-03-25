@@ -55,7 +55,7 @@ wiz_NetInfo netInfo = { .mac  = {0x20, 0xcf, 0xF0, 0x82, 0x76, 0x00}, // Mac add
 .gw   = {192, 168, 1, 1}, // Gateway address
 .dhcp = NETINFO_STATIC};    //Static IP configuration
 
-uint16_t socketPort[8] = {80, 23, 80, 80, 8080, 8080, 8080, 5000};
+uint16_t socketPort[8] = {80, 23, 23, 80, 8080, 8080, 8080, 5000};
 uint8_t rx_tx_buff_sizes[]={2,2,2,2,2,2,2,2};
 	
 
@@ -63,9 +63,12 @@ uint8_t rx_tx_buff_sizes[]={2,2,2,2,2,2,2,2};
 uint8_t result;
 uint8_t *testBuffer 	= "Wiznet Says Hi!";
 uint8_t  UdpDestAddress[4]		= { 192,168,1,255 };
-uint16_t UdpPort			= 300;
-uint8_t	 UdpSockNum			= 0;
-uint8_t	 TelnetSockNum		= 1;
+uint16_t UdpTxPort			= 300;
+uint8_t	 UdpTxSockNum			= 0;
+uint16_t UdpRxPort			= 301;
+uint8_t	 UdpRxSockNum			= 1;
+
+uint8_t	 TelnetSockNum		= 2;
 
 
 uint8_t rtcData[64];	
@@ -136,10 +139,11 @@ int main(void)
 		
 	
 	
-	hid_generic_example();
+	//hid_generic_example();
 	//usbdc_register_handler(USBDC_HDL_SOF, &usbd_sof_event_h);
-	hiddf_generic_register_callback(HIDDF_GENERIC_CB_READ, (FUNC_PTR)usb_device_cb_generic_out);
-	hiddf_generic_read(hid_generic_out_report, 64);
+	
+	//hiddf_generic_register_callback(HIDDF_GENERIC_CB_READ, (FUNC_PTR)usb_device_cb_generic_out);
+	//hiddf_generic_read(hid_generic_out_report, 64);
 
 	
 
@@ -193,6 +197,21 @@ int main(void)
 			}
 		
 		
+		if(getSn_SR(UdpRxSockNum) == SOCK_CLOSED){
+			socket(UdpRxSockNum, Sn_MR_UDP, UdpRxPort, SF_MULTI_ENABLE);
+			listen(UdpRxSockNum);
+		}
+		
+		uint16_t udp_size = getSn_RX_RSR(UdpRxSockNum);
+		if (udp_size > 0) {
+			uint8_t ip[4];
+			uint16_t port;
+			if (udp_size > TCP_RX_BUF) udp_size = TCP_RX_BUF;
+			uint16_t ret = recvfrom(UdpRxSockNum, (uint8_t*)TCP_RX_BUF, udp_size, ip, &port);
+			
+			result = socket(UdpTxSockNum, Sn_MR_UDP, UdpTxPort, SF_IO_NONBLOCK);
+			result = sendto(UdpTxSockNum, TCP_RX_BUF, udp_size, UdpDestAddress, UdpTxPort);
+		}
 		
 		
 		//Telnet handler
@@ -200,7 +219,7 @@ int main(void)
 			uint8_t rIP[4];
 			getsockopt(TelnetSockNum, SO_DESTIP, rIP);
 			
-			uint16_t res_size = getSn_RX_RSR(1);
+			uint16_t res_size = getSn_RX_RSR(TelnetSockNum);
 			if (res_size > sizeof(TCP_RX_BUF)){
 				res_size = sizeof(TCP_RX_BUF);
 			}
@@ -211,8 +230,8 @@ int main(void)
 				sprintf(http_ansver ,"DONE\n\r");
 				send(TelnetSockNum, (uint8_t*)http_ansver, strlen(http_ansver));
 			}
-			result = socket(UdpSockNum, Sn_MR_UDP, UdpPort, SF_IO_NONBLOCK);
-			result = sendto(UdpSockNum, TCP_RX_BUF, res_size, UdpDestAddress, UdpPort);
+			result = socket(UdpTxSockNum, Sn_MR_UDP, UdpTxPort, SF_IO_NONBLOCK);
+			result = sendto(UdpTxSockNum, TCP_RX_BUF, res_size, UdpDestAddress, UdpTxPort);
 		}
 		if(getSn_SR(TelnetSockNum) == SOCK_CLOSE_WAIT){
 			disconnect(TelnetSockNum);
@@ -239,8 +258,8 @@ int main(void)
 		
 		
 		
-		uint8_t HTTP_SOCKET = 0;
-		for(HTTP_SOCKET = 2; HTTP_SOCKET <= 7; HTTP_SOCKET++){
+		
+		for(uint8_t HTTP_SOCKET = 3; HTTP_SOCKET <= 7; HTTP_SOCKET++){
 			if(getSn_SR(HTTP_SOCKET) == SOCK_ESTABLISHED){
 				uint8_t rIP[4];
 				getsockopt(HTTP_SOCKET, SO_DESTIP, rIP);
@@ -250,24 +269,18 @@ int main(void)
 					res_size = sizeof(TCP_RX_BUF);					
 				}
 				memset(TCP_RX_BUF, 0, sizeof(DATA_BUFF_SIZE));
-				
-				
-				
-				
-				
+
 				sprintf(http_ansver ,"<p><span style=\"color: #00ff00;\"><strong>data</strong></span></p>\n\r");
 				send(HTTP_SOCKET, (uint8_t*)http_ansver, strlen(http_ansver));    //Uncomment for TCP
-				
-				
-				
+
 				recv(HTTP_SOCKET, (uint8_t*)TCP_RX_BUF, res_size);
 				
 				//if(res_size != 0){ // Actual for telnet connection
 					//send(HTTP_SOCKET, (uint8_t*)http_ansver, strlen(http_ansver));
 				//}
 				
-				result = socket(UdpSockNum, Sn_MR_UDP, UdpPort, SF_IO_NONBLOCK);
-				result = sendto(UdpSockNum, TCP_RX_BUF, res_size, UdpDestAddress, UdpPort);
+				result = socket(UdpTxSockNum, Sn_MR_UDP, UdpTxPort, SF_IO_NONBLOCK);
+				result = sendto(UdpTxSockNum, TCP_RX_BUF, res_size, UdpDestAddress, UdpTxPort);
 				
 				
 				sprintf(http_ansver, "SOCKET NUM: %d;<br>RTC: %02d:%02d:%02d; \nRead bytes: %d<br>" , HTTP_SOCKET, sys_rtc.hour, sys_rtc.minute, sys_rtc.second,res_size);
