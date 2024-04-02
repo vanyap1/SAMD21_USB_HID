@@ -366,8 +366,10 @@ void mcu_init(void)
 	init_mcu();
 	gpio_init();
 	ETH_SPI_Init();
-	RTC_init();
+	
 	I2C_init(); //External port
+	
+	
 	RF_init();
 	
 	IRQ_init();

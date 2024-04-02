@@ -8,8 +8,12 @@
 
 #include "RFM69registers.h"
 #include "RFM69.h"
-
 #include "rtc.h"
+#include "u8g2.h"
+#include "displaySupport.h"
+
+u8g2_t lcd;
+
 
 
 #define POWERBANKID		0x21
@@ -30,6 +34,7 @@
 
 #define TX_MUTE			0
 #define TX_UNMUTE		1
+#define TX_MODE			TX_UNMUTE
 
 
 uint8_t txLen;
@@ -41,12 +46,13 @@ rfHeader rfTxDataPack;
 rtc_date sys_rtc = {
 	.date = 4,
 	.month = 12,
-	.year = 23,
+	.year = 2023,
 	.dayofweek = 1,
 	.hour = 23,
 	.minute = 54,
 	.second = 00
 };
+uint8_t timeSyncRequest = 0;
 
 wiz_NetInfo netInfo = { .mac  = {0x20, 0xcf, 0xF0, 0x82, 0x76, 0x00}, // Mac address
 .ip   = {192, 168, 1, 99},         // IP address
@@ -58,18 +64,20 @@ wiz_NetInfo netInfo = { .mac  = {0x20, 0xcf, 0xF0, 0x82, 0x76, 0x00}, // Mac add
 uint16_t socketPort[8] = {80, 23, 23, 80, 8080, 8080, 8080, 5000};
 uint8_t rx_tx_buff_sizes[]={2,2,2,2,2,2,2,2};
 	
+uint8_t udpTxDatagram[128]; 
 
 //UDP pkg sender 
 uint8_t result;
 uint8_t *testBuffer 	= "Wiznet Says Hi!";
 uint8_t  UdpDestAddress[4]		= { 192,168,1,255 };
-uint16_t UdpTxPort			= 300;
+uint16_t UdpTxPort			= 3000;
 uint8_t	 UdpTxSockNum			= 0;
-uint16_t UdpRxPort			= 301;
+uint16_t UdpRxPort			= 3001;
 uint8_t	 UdpRxSockNum			= 1;
 
-uint8_t	 TelnetSockNum		= 2;
-
+uint8_t	TelnetSockNum		= 2;
+uint8_t lcdUpdateReq = 0;
+uint8_t displayString[32];
 
 uint8_t rtcData[64];	
 uint8_t testMsg[64];	
@@ -116,13 +124,34 @@ int main(void)
 {
 	
 	//atmel_start_init();
+	RTC_init();
+	//rtc_set(&sys_rtc);
+	rtc_int_enable(&sys_rtc);
 	mcu_init();
-	rtc_set(&sys_rtc);
+	//rtc_set(&sys_rtc);
 	rtc_int_enable(&sys_rtc);
 	
 		reg_wizchip_cs_cbfunc(W5500_Select, W5500_Unselect);
 		reg_wizchip_spi_cbfunc(W5500_ReadByte, W5500_Write_byte);
 		reg_wizchip_spiburst_cbfunc(W5500_ReadBuff, W5500_WriteBuff);
+		
+		//u8g2_Setup_ssd1306_i2c_128x32_univision_f(&lcd, U8G2_R0, u8x8_byte_sw_i2c, fake_delay_fn);
+		u8g2_Setup_ssd1306_i2c_128x64_noname_f(&lcd, U8G2_R0, u8x8_byte_sw_i2c, fake_delay_fn);
+		u8g2_SetI2CAddress(&lcd, 0x3c);//3c
+		u8g2_InitDisplay(&lcd);
+		u8g2_SetPowerSave(&lcd, 0);
+		//u8g2_SetFlipMode(&lcd, 1);
+		//u8g2_SetContrast(&lcd, 120);
+		
+		u8g2_ClearBuffer(&lcd);
+		//u8g2_SetFont(&lcd, u8g2_font_5x8_t_cyrillic);
+		//u8g2_SetFont(&lcd, u8g2_font_6x10_mf);
+		//u8g2_SetFont(&lcd, u8g2_font_ncenB14_tr);
+		u8g2_SetFont(&lcd, u8g2_font_lucasarts_scumm_subtitle_o_tf);
+		
+		u8g2_DrawStr(&lcd, 1, 17, (void *)"RX MODULE");
+		u8g2_SendBuffer(&lcd);
+		
 		
 		rfm69_init(868, NODEID, NETWORKID);
 		setHighPower(true);
@@ -145,7 +174,7 @@ int main(void)
 	//hiddf_generic_register_callback(HIDDF_GENERIC_CB_READ, (FUNC_PTR)usb_device_cb_generic_out);
 	//hiddf_generic_read(hid_generic_out_report, 64);
 
-	
+	uint8_t iAddr = 10;
 
 	
 	/* Replace with your application code */
@@ -159,32 +188,47 @@ int main(void)
 			rtc_sync(&sys_rtc);
 			sprintf(rtcData, "%02d:%02d:%02d", sys_rtc.hour, sys_rtc.minute, sys_rtc.second);
 			
-			if(TX_UNMUTE){
-				rfTxDataPack.destinationAddr = ALLNODES;
-				rfTxDataPack.senderAddr = NODEID;
-				rfTxDataPack.opcode = MSG;
-				rfTxDataPack.rxtxBuffLenght = sizeof(rtcData);
-				rfTxDataPack.dataCRC = simpleCRC(&rtcData, sizeof(rtcData));
-				sendFrame(&rfTxDataPack, &rtcData);
+			if(TX_MODE){
+				if(timeSyncRequest){
+					rfTxDataPack.destinationAddr = ALLNODES;
+					rfTxDataPack.senderAddr = NODEID;
+					rfTxDataPack.opcode = RTC_SYNC;
+					rfTxDataPack.rxtxBuffLenght = sizeof(sys_rtc);
+					rfTxDataPack.dataCRC = simpleCRC(&sys_rtc, sizeof(sys_rtc));
+					sendFrame(&rfTxDataPack, &sys_rtc);
+					timeSyncRequest = 0;
+				}
+				
 			}
 			
 			//result = socket(0, Sn_MR_UDP, port, SF_IO_NONBLOCK);
 			//result = sendto(0, testBuffer, strlen(testBuffer), address, port);
 			
 			
+			//gpio_toggle_pin_level(RLD);
+			lcdUpdateReq = 1;
 			
-			gpio_toggle_pin_level(RLD);
+			
 		}
 		
 		if (rf_isReady()) {
 			gpio_set_pin_level(GLD, true);
 			rfHeader* rfRxDataMsg=rfMsgType();
 			
+			size_t msgHeaderSize = sizeof(rfHeader);			
+			memcpy(udpTxDatagram, rfRxDataMsg, msgHeaderSize);
+			memcpy(udpTxDatagram + sizeof(rfHeader), DATA, rfRxDataMsg->rxtxBuffLenght);
+			
+			result = socket(UdpTxSockNum, Sn_MR_UDP, UdpTxPort, SF_IO_NONBLOCK);
+			result = sendto(UdpTxSockNum, udpTxDatagram, msgHeaderSize+rfRxDataMsg->rxtxBuffLenght, UdpDestAddress, UdpTxPort);
+			
+			
 			switch(rfRxDataMsg->opcode) {
 				case MSG:
 				memcpy(&testMsg, DATA, sizeof(testMsg));
 				break;
 				case RTC_SYNC:
+				
 				memcpy(&sys_rtc, DATA, sizeof(sys_rtc));
 				rtc_set(&sys_rtc);
 				//if(sys_rtc.second == 0){lcdInitReq=1;}
@@ -208,9 +252,17 @@ int main(void)
 			uint16_t port;
 			if (udp_size > TCP_RX_BUF) udp_size = TCP_RX_BUF;
 			uint16_t ret = recvfrom(UdpRxSockNum, (uint8_t*)TCP_RX_BUF, udp_size, ip, &port);
+			if(TCP_RX_BUF[0] == 0xaa & TCP_RX_BUF[1] == RTC_SYNC){
+				memcpy(&sys_rtc, &TCP_RX_BUF[2], sizeof(sys_rtc));
+				rtc_set(&sys_rtc);
+				timeSyncRequest = 1;
+			}
+			//}else{
+				//result = socket(UdpTxSockNum, Sn_MR_UDP, UdpTxPort, SF_IO_NONBLOCK);
+				//result = sendto(UdpTxSockNum, TCP_RX_BUF, udp_size, UdpDestAddress, UdpTxPort);
+			//}
 			
-			result = socket(UdpTxSockNum, Sn_MR_UDP, UdpTxPort, SF_IO_NONBLOCK);
-			result = sendto(UdpTxSockNum, TCP_RX_BUF, udp_size, UdpDestAddress, UdpTxPort);
+			
 		}
 		
 		
@@ -338,7 +390,29 @@ int main(void)
 		
 		
 		
-		
+		if(lcdUpdateReq){
+			u8g2_ClearBuffer(&lcd);
+			
+			//u8g2_SetFont(&lcd, u8g2_font_6x10_mf);
+			//u8g2_SetFont(&lcd, u8g2_font_ncenB14_tr);
+			//u8g2_SetFont(&lcd, u8g2_font_lucasarts_scumm_subtitle_o_tf);
+			//u8g2_SetFont(&lcd, u8g2_font_sirclive_tr);
+			u8g2_SetFont(&lcd, u8g2_font_haxrcorp4089_tr);
+			
+			
+			
+			sprintf(displayString, "%02d:%02d:%02d", sys_rtc.hour, sys_rtc.minute, sys_rtc.second);
+			u8g2_DrawStr(&lcd, 128-84, 63, (void *)displayString);
+			
+			sprintf(displayString, "%01d", (getPHYCFGR() & PHYCFGR_LNK_ON));
+			u8g2_DrawStr(&lcd, 1, 63, (void *)displayString);
+			
+			
+			
+			
+			u8g2_SendBuffer(&lcd);
+			lcdUpdateReq=0;
+		}
 		
 		
 		

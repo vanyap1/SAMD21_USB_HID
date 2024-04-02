@@ -823,6 +823,12 @@
     <Compile Include="libs\config\pin_config.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="libs\display\displaySupport.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="libs\display\displaySupport.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="libs\display\mui.c">
       <SubType>compile</SubType>
     </Compile>
