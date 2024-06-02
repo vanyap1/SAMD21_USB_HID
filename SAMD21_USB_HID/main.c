@@ -66,6 +66,7 @@ uint8_t rx_tx_buff_sizes[]={2,2,2,2,2,2,2,2};
 	
 uint8_t udpTxDatagram[128]; 
 
+
 //UDP pkg sender 
 uint8_t result;
 uint8_t *testBuffer 	= "Wiznet Says Hi!";
@@ -81,6 +82,7 @@ uint8_t displayString[32];
 
 uint8_t rtcData[64];	
 uint8_t testMsg[64];	
+uint8_t udpRxBuff[64];
 
 static uint8_t hid_generic_in_report[64];
 static uint8_t hid_generic_out_report[64];
@@ -251,16 +253,35 @@ int main(void)
 			uint8_t ip[4];
 			uint16_t port;
 			if (udp_size > TCP_RX_BUF) udp_size = TCP_RX_BUF;
+			
+			memset(TCP_RX_BUF, 0, sizeof(TCP_RX_BUF));
 			uint16_t ret = recvfrom(UdpRxSockNum, (uint8_t*)TCP_RX_BUF, udp_size, ip, &port);
+			
+			
+			
 			if(TCP_RX_BUF[0] == 0xaa & TCP_RX_BUF[1] == RTC_SYNC){
 				memcpy(&sys_rtc, &TCP_RX_BUF[2], sizeof(sys_rtc));
 				rtc_set(&sys_rtc);
 				timeSyncRequest = 1;
-			}
-			//}else{
-				//result = socket(UdpTxSockNum, Sn_MR_UDP, UdpTxPort, SF_IO_NONBLOCK);
-				//result = sendto(UdpTxSockNum, TCP_RX_BUF, udp_size, UdpDestAddress, UdpTxPort);
+			}else{
 			//}
+			
+					
+					
+				
+				memset(&udpRxBuff, 0, sizeof(udpRxBuff));
+				memcpy(&udpRxBuff, &TCP_RX_BUF,udp_size);
+				
+				//uint8_t res = strstr(udpRxBuff, "test");
+				//sprintf(http_ansver, "ok %02d", res);
+				sprintf(http_ansver, "ok");
+				
+				result = socket(UdpTxSockNum, Sn_MR_UDP, UdpTxPort+2, SF_IO_NONBLOCK);
+				result = sendto(UdpTxSockNum, (uint8_t*)http_ansver, strlen(http_ansver), UdpDestAddress, UdpTxPort+2);
+				
+				lcdUpdateReq = 1;
+				
+			}
 			
 			
 		}
@@ -401,10 +422,13 @@ int main(void)
 			
 			
 			
+			u8g2_DrawStr(&lcd, 1, 8, (void *)udpRxBuff);
+			
 			sprintf(displayString, "%02d:%02d:%02d", sys_rtc.hour, sys_rtc.minute, sys_rtc.second);
-			u8g2_DrawStr(&lcd, 128-84, 63, (void *)displayString);
+			u8g2_DrawStr(&lcd, 90, 63, (void *)displayString);
 			
 			sprintf(displayString, "%01d", (getPHYCFGR() & PHYCFGR_LNK_ON));
+			
 			u8g2_DrawStr(&lcd, 1, 63, (void *)displayString);
 			
 			
