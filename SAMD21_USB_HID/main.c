@@ -182,13 +182,14 @@ int main(void)
 	/* Replace with your application code */
 	while (1) {
 		
-		gpio_set_pin_level(LED_SD, GetBtnState());
+		
 		
 		
 		if (RTC_IRQ_Ready())
 		{
 			rtc_sync(&sys_rtc);
 			sprintf(rtcData, "%02d:%02d:%02d", sys_rtc.hour, sys_rtc.minute, sys_rtc.second);
+			
 			
 			if(TX_MODE){
 				if(timeSyncRequest){
@@ -256,34 +257,38 @@ int main(void)
 			
 			memset(TCP_RX_BUF, 0, sizeof(TCP_RX_BUF));
 			uint16_t ret = recvfrom(UdpRxSockNum, (uint8_t*)TCP_RX_BUF, udp_size, ip, &port);
-			
-			
-			
+
 			if(TCP_RX_BUF[0] == 0xaa & TCP_RX_BUF[1] == RTC_SYNC){
 				memcpy(&sys_rtc, &TCP_RX_BUF[2], sizeof(sys_rtc));
 				rtc_set(&sys_rtc);
 				timeSyncRequest = 1;
 			}else{
-			//}
-			
-					
-					
-				
 				memset(&udpRxBuff, 0, sizeof(udpRxBuff));
 				memcpy(&udpRxBuff, &TCP_RX_BUF,udp_size);
 				
-				//uint8_t res = strstr(udpRxBuff, "test");
-				//sprintf(http_ansver, "ok %02d", res);
-				sprintf(http_ansver, "ok");
+				if(strcasecmp(udpRxBuff, "OUTP:STAT ON") == 0){
+					sprintf(http_ansver, "ok");
+					gpio_set_pin_level(LED_SD, true);
 				
+				}else if(strcasecmp(udpRxBuff, "OUTP:STAT OFF") == 0){
+					sprintf(http_ansver, "ok");
+					gpio_set_pin_level(LED_SD, false);
+				
+				}else if(strcasecmp(udpRxBuff, "MEAS:CURR?") == 0){
+					sprintf(http_ansver, "0.121");
+				
+				}else if(strcasecmp(udpRxBuff, "MEAS:VOLT?") == 0){
+					sprintf(http_ansver, "48.031");
+					
+				}else if(strcasecmp(udpRxBuff, "*RST") == 0){
+				sprintf(http_ansver, "ok");
+				}else{
+					sprintf(http_ansver, "err");
+				}
 				result = socket(UdpTxSockNum, Sn_MR_UDP, UdpTxPort+2, SF_IO_NONBLOCK);
 				result = sendto(UdpTxSockNum, (uint8_t*)http_ansver, strlen(http_ansver), UdpDestAddress, UdpTxPort+2);
-				
-				lcdUpdateReq = 1;
-				
 			}
-			
-			
+			lcdUpdateReq = 1;
 		}
 		
 		
@@ -315,21 +320,6 @@ int main(void)
 			socket(TelnetSockNum, Sn_MR_TCP, socketPort[TelnetSockNum], 0);
 			listen(TelnetSockNum);
 		}
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
 		
 		
 		for(uint8_t HTTP_SOCKET = 3; HTTP_SOCKET <= 7; HTTP_SOCKET++){
@@ -425,26 +415,16 @@ int main(void)
 			u8g2_DrawStr(&lcd, 1, 8, (void *)udpRxBuff);
 			
 			sprintf(displayString, "%02d:%02d:%02d", sys_rtc.hour, sys_rtc.minute, sys_rtc.second);
-			u8g2_DrawStr(&lcd, 90, 63, (void *)displayString);
+			u8g2_DrawStr(&lcd, 86, 63, (void *)displayString);
 			
 			sprintf(displayString, "%01d", (getPHYCFGR() & PHYCFGR_LNK_ON));
 			
 			u8g2_DrawStr(&lcd, 1, 63, (void *)displayString);
 			
 			
-			
-			
 			u8g2_SendBuffer(&lcd);
 			lcdUpdateReq=0;
 		}
-		
-		
-		
-		
-		
-		
-		
-		
 		
 		
 	}
