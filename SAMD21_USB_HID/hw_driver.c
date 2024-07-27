@@ -123,6 +123,14 @@ void gpio_init(void){
 		gpio_set_pin_direction(LED_SD, GPIO_DIRECTION_OUT);
 		gpio_set_pin_function(LED_SD, GPIO_PIN_FUNCTION_OFF);
 		
+		gpio_set_pin_level(RF_LED, false);
+		gpio_set_pin_direction(RF_LED, GPIO_DIRECTION_OUT);
+		gpio_set_pin_function(RF_LED, GPIO_PIN_FUNCTION_OFF);
+		
+		gpio_set_pin_level(ETH_LED, false);
+		gpio_set_pin_direction(ETH_LED, GPIO_DIRECTION_OUT);
+		gpio_set_pin_function(ETH_LED, GPIO_PIN_FUNCTION_OFF);
+		
 		gpio_set_pin_direction(SD_DETECT, GPIO_DIRECTION_IN);
 		gpio_set_pin_pull_mode(SD_DETECT, GPIO_PULL_OFF);
 		gpio_set_pin_function(SD_DETECT, GPIO_PIN_FUNCTION_OFF);

@@ -54,8 +54,8 @@ rtc_date sys_rtc = {
 };
 uint8_t timeSyncRequest = 0;
 
-wiz_NetInfo netInfo = { .mac  = {0x20, 0xcf, 0xF0, 0x82, 0x76, 0x00}, // Mac address
-.ip   = {192, 168, 1, 99},         // IP address
+wiz_NetInfo netInfo = { .mac  = {0x20, 0xcf, 0xF0, 0x82, 0x76, 0x40}, // Mac address
+.ip   = {192, 168, 1, 10},         // IP address
 .sn   = {255, 255, 255, 0},         // Subnet mask
 .dns =  {8,8,8,8},			  // DNS address (google dns)
 .gw   = {192, 168, 1, 1}, // Gateway address
@@ -138,8 +138,10 @@ int main(void)
 		reg_wizchip_spiburst_cbfunc(W5500_ReadBuff, W5500_WriteBuff);
 		
 		//u8g2_Setup_ssd1306_i2c_128x32_univision_f(&lcd, U8G2_R0, u8x8_byte_sw_i2c, fake_delay_fn);
-		u8g2_Setup_ssd1306_i2c_128x64_noname_f(&lcd, U8G2_R0, u8x8_byte_sw_i2c, fake_delay_fn);
-		u8g2_SetI2CAddress(&lcd, 0x3c);//3c
+		delay_ms(100);
+		u8g2_Setup_ssd1309_i2c_128x64_noname2_f(&lcd, U8G2_R0, u8x8_byte_sw_i2c, fake_delay_fn);
+				
+		u8g2_SetI2CAddress(&lcd, 0x3d);//3c
 		u8g2_InitDisplay(&lcd);
 		u8g2_SetPowerSave(&lcd, 0);
 		//u8g2_SetFlipMode(&lcd, 1);
@@ -148,10 +150,12 @@ int main(void)
 		u8g2_ClearBuffer(&lcd);
 		//u8g2_SetFont(&lcd, u8g2_font_5x8_t_cyrillic);
 		//u8g2_SetFont(&lcd, u8g2_font_6x10_mf);
-		//u8g2_SetFont(&lcd, u8g2_font_ncenB14_tr);
-		u8g2_SetFont(&lcd, u8g2_font_lucasarts_scumm_subtitle_o_tf);
+		u8g2_SetFont(&lcd, u8g2_font_ncenB10_tr);
+		//u8g2_SetFont(&lcd, u8g2_font_lucasarts_scumm_subtitle_o_tf);
 		
-		u8g2_DrawStr(&lcd, 1, 17, (void *)"RX MODULE");
+		sprintf(displayString, "ip: %d.%d.%d.%d", netInfo.ip[0], netInfo.ip[1], netInfo.ip[2], netInfo.ip[3]);
+		u8g2_DrawStr(&lcd, 1, 12, (void *)"RF GATEWAY");
+		u8g2_DrawStr(&lcd, 1, 25, displayString);
 		u8g2_SendBuffer(&lcd);
 		
 		
@@ -177,7 +181,7 @@ int main(void)
 	//hiddf_generic_read(hid_generic_out_report, 64);
 
 	uint8_t iAddr = 10;
-
+	//u8g2_SetContrast(&lcd, 0);
 	
 	/* Replace with your application code */
 	while (1) {
@@ -216,6 +220,7 @@ int main(void)
 		
 		if (rf_isReady()) {
 			gpio_set_pin_level(GLD, true);
+			gpio_set_pin_level(RF_LED, true);
 			rfHeader* rfRxDataMsg=rfMsgType();
 			
 			size_t msgHeaderSize = sizeof(rfHeader);			
@@ -241,6 +246,7 @@ int main(void)
 				//gpio_toggle_pin_level(GLD);
 			}
 			gpio_set_pin_level(GLD, false);
+			gpio_set_pin_level(RF_LED, false);
 			}
 		
 		
@@ -250,7 +256,11 @@ int main(void)
 		}
 		
 		uint16_t udp_size = getSn_RX_RSR(UdpRxSockNum);
-		if (udp_size > 0) {
+		if (udp_size != 0) {
+			uint8_t rIP[4];
+			getsockopt(TelnetSockNum, SO_DESTIP, rIP);
+			
+			gpio_set_pin_level(ETH_LED, true);
 			uint8_t ip[4];
 			uint16_t port;
 			if (udp_size > TCP_RX_BUF) udp_size = TCP_RX_BUF;
@@ -262,9 +272,24 @@ int main(void)
 				memcpy(&sys_rtc, &TCP_RX_BUF[2], sizeof(sys_rtc));
 				rtc_set(&sys_rtc);
 				timeSyncRequest = 1;
+			}
+			else if(TCP_RX_BUF[0] == 0xaa & TCP_RX_BUF[1] == MSG){
+				memcpy(&http_ansver, &TCP_RX_BUF[2], strlen(TCP_RX_BUF));
+				if(TX_MODE == TX_UNMUTE){
+					rfTxDataPack.destinationAddr = ALLNODES;
+					rfTxDataPack.senderAddr = NODEID;
+					rfTxDataPack.opcode = MSG;
+					rfTxDataPack.rxtxBuffLenght = strlen(http_ansver);
+					rfTxDataPack.dataCRC = simpleCRC(&http_ansver, strlen(TCP_RX_BUF));
+					gpio_set_pin_level(RF_LED, true);
+					sendFrame(&rfTxDataPack, &http_ansver);
+					gpio_set_pin_level(RF_LED, false);
+				}	
+			
+			
 			}else{
 				memset(&udpRxBuff, 0, sizeof(udpRxBuff));
-				memcpy(&udpRxBuff, &TCP_RX_BUF,udp_size);
+				memcpy(&udpRxBuff, &TCP_RX_BUF,sizeof(TCP_RX_BUF));
 				
 				if(strcasecmp(udpRxBuff, "OUTP:STAT ON") == 0){
 					sprintf(http_ansver, "ok");
@@ -285,9 +310,10 @@ int main(void)
 				}else{
 					sprintf(http_ansver, "err");
 				}
-				result = socket(UdpTxSockNum, Sn_MR_UDP, UdpTxPort+2, SF_IO_NONBLOCK);
-				result = sendto(UdpTxSockNum, (uint8_t*)http_ansver, strlen(http_ansver), UdpDestAddress, UdpTxPort+2);
+				result = socket(UdpTxSockNum, Sn_MR_UDP, UdpTxPort, SF_IO_NONBLOCK);
+				result = sendto(UdpTxSockNum, (uint8_t*)http_ansver, strlen(http_ansver), UdpDestAddress, UdpTxPort);
 			}
+			gpio_set_pin_level(ETH_LED, false);
 			lcdUpdateReq = 1;
 		}
 		
@@ -408,19 +434,43 @@ int main(void)
 			//u8g2_SetFont(&lcd, u8g2_font_ncenB14_tr);
 			//u8g2_SetFont(&lcd, u8g2_font_lucasarts_scumm_subtitle_o_tf);
 			//u8g2_SetFont(&lcd, u8g2_font_sirclive_tr);
+			
+			
+			
+			u8g2_SetFont(&lcd, u8g2_font_ncenB10_tr);
+			
+			u8g2_DrawStr(&lcd, 1, 12, (void *)"RF GATEWAY");
+			
+			sprintf(displayString, "IP: %d.%d.%d.%d", netInfo.ip[0], netInfo.ip[1], netInfo.ip[2], netInfo.ip[3]);
+			u8g2_DrawStr(&lcd, 1, 25, displayString);
+			
 			u8g2_SetFont(&lcd, u8g2_font_haxrcorp4089_tr);
+			sprintf(displayString, "mac: %02X:%02X:%02X:%02X:%02X:%02X", netInfo.mac[0], netInfo.mac[1], netInfo.mac[2], netInfo.mac[3], netInfo.mac[4], netInfo.mac[5]);
+			u8g2_DrawStr(&lcd, 1, 37, displayString);
 			
 			
 			
-			u8g2_DrawStr(&lcd, 1, 8, (void *)udpRxBuff);
+			
+			
+			u8g2_DrawStr(&lcd, 50, 47, (void *)udpRxBuff);
 			
 			sprintf(displayString, "%02d:%02d:%02d", sys_rtc.hour, sys_rtc.minute, sys_rtc.second);
 			u8g2_DrawStr(&lcd, 86, 63, (void *)displayString);
 			
-			sprintf(displayString, "%01d", (getPHYCFGR() & PHYCFGR_LNK_ON));
+			//sprintf(displayString, "%01d", (getPHYCFGR() & PHYCFGR_LNK_ON));
+			//u8g2_DrawStr(&lcd, 1, 63, (void *)displayString);
 			
-			u8g2_DrawStr(&lcd, 1, 63, (void *)displayString);
-			
+			u8g2_SetFont(&lcd, u8g2_font_streamline_all_t);
+			u8g2_DrawGlyph(&lcd, 1, 63, 0x01fd);
+			if(TX_MODE == TX_MUTE){
+				u8g2_DrawLine(&lcd, 1, 63-24, 24, 63);
+				u8g2_DrawLine(&lcd, 1, 63, 24, 63-24);
+			}
+			if((getPHYCFGR() & PHYCFGR_LNK_ON)){
+			u8g2_DrawGlyph(&lcd, 25, 63, 0x0081);
+			}else{
+			u8g2_DrawGlyph(&lcd, 25, 63, 0x0080);
+			}
 			
 			u8g2_SendBuffer(&lcd);
 			lcdUpdateReq=0;

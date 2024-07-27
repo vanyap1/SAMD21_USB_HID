@@ -50,6 +50,9 @@
 #define GLD GPIO(GPIO_PORTB, 0)
 #define BTN0 GPIO(GPIO_PORTB, 1)
 
+#define RF_LED GPIO(GPIO_PORTB, 10)
+#define ETH_LED GPIO(GPIO_PORTB, 11)
+
 //RF module pins
 #define PA00 GPIO(GPIO_PORTA, 0)		//MOSI
 #define PA01 GPIO(GPIO_PORTA, 1)		//CLK

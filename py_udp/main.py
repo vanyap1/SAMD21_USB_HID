@@ -25,7 +25,9 @@ class MainThread():
 
     def run(self): 
         while True:
-            dataArray = ExternalHelper.build_byte_array()
+            #dataArray = ExternalHelper.build_byte_array()
+            
+            dataArray = ExternalHelper.buildMessage("Python3") 
             send_byte_array(dataArray, HOST_BROADCAST, TX_PORT)
             print(dataArray)
             time.sleep(30)
